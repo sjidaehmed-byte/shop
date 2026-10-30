@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>تطبيق صاحب المتجر</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f5f4;--ink:#0f1f1a;--mut:#66736e;--pri:#0f7b5f;--no:#e5484d;--card:#fff}
+*{box-sizing:border-box;margin:0;-webkit-tap-highlight-color:transparent}
+body{font-family:Cairo,system-ui,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.s{display:none;min-height:100vh;padding:20px 16px 90px}.s.on{display:block}
+h1{font-size:28px;font-weight:900}h2{font-size:20px;margin-bottom:14px}
+button,.btn{font:inherit;border:0;border-radius:14px;padding:13px;font-weight:700;width:100%;cursor:pointer;background:var(--pri);color:#fff;margin-top:10px;display:block;text-align:center;text-decoration:none}
+button.g,.g{background:#dff0ea;color:var(--pri)}button.no{background:#fde8e8;color:var(--no)}
+input{font:inherit;width:100%;padding:14px;border:1.5px solid #d5ddd9;border-radius:14px;margin-top:10px;background:#fff}
+input:focus{outline:0;border-color:var(--pri)}
+.o{background:var(--card);border-radius:18px;padding:16px;margin-bottom:12px;box-shadow:0 2px 10px #0f1f1a0d}
+.o small{color:var(--mut);display:block}.o .t{font-size:18px;font-weight:900}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.of{display:flex;gap:12px;align-items:center}.of img{width:64px;height:64px;border-radius:12px;object-fit:cover;background:#e3e9e6}.of div{flex:1}.of button{width:auto;margin:0;padding:9px 14px}
+.tabs{position:fixed;bottom:0;inset-inline:0;display:flex;background:#fff;border-top:1px solid #e0e6e3;padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{background:none;color:var(--mut);margin:0;border-radius:0}.tabs .on{color:var(--pri)}
+#ms{height:calc(100vh - 190px);overflow:auto;display:flex;flex-direction:column;gap:8px}
+.b{max-width:80%;padding:10px 14px;border-radius:18px;background:#fff;align-self:flex-start}.b.me{background:var(--pri);color:#fff;align-self:flex-end}
+.cb{display:flex;gap:8px;position:fixed;bottom:0;inset-inline:0;padding:10px;background:#fff}.cb input{margin:0}.cb button{width:90px;margin:0}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.top button{width:auto;margin:0;padding:9px 14px}
+.err{color:var(--no);margin-top:10px;min-height:22px}
+</style></head><body>
+
+<section id="auth" class="s on"><div style="padding:60px 0 20px"><h1>متجري</h1><p style="color:var(--mut)">أدر عروضك وطلبات زبائنك</p></div>
+<input id="em" type="email" placeholder="البريد الإلكتروني"><input id="pw" type="password" placeholder="كلمة المرور (6 أحرف فأكثر)">
+<div class="err" id="er"></div><button onclick="auth(0)">دخول</button><button class="g" onclick="auth(1)">إنشاء حساب جديد</button>
+<button class="g" onclick="reset()">نسيت كلمة المرور</button></section>
+
+<section id="ords" class="s"><div class="top"><h2 style="margin:0">الطلبات</h2><button class="g" onclick="firebase.auth().signOut()">خروج</button></div><div id="ol"></div></section>
+
+<section id="offs" class="s"><h2>العروض</h2>
+<div class="o"><input id="on" placeholder="اسم العرض"><input id="op" placeholder="السعر"><input id="oi" type="file" accept="image/*">
+<button onclick="addOffer()">نشر العرض</button></div><div id="ofl"></div></section>
+
+<section id="chat" class="s"><div class="top"><h2 id="ct" style="margin:0"></h2><button class="g" onclick="show('ords')">رجوع</button></div>
+<div id="ms"></div><div class="cb"><input id="cm" placeholder="اكتب رسالة"><button onclick="sendMsg()">إرسال</button></div></section>
+
+<div class="tabs" id="tabs" style="display:none"><button id="t1" class="on" onclick="show('ords')">الطلبات</button><button id="t2" onclick="show('offs')">العروض</button></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ===== ضع إعدادات Firebase هنا (نفس المشروع المستخدم في تطبيق الزبون) =====
+const CFG={apiKey:"AIzaSyBWSLi4ehDjmO1j1R7r7-kFENVVg8UGBRk",authDomain:"ccccccccvb.firebaseapp.com",projectId:"ccccccccvb",storageBucket:"ccccccccvb.firebasestorage.app",messagingSenderId:"730885629435",appId:"1:730885629435:web:e8e56f1efdb87238ee975e"};
+firebase.initializeApp(CFG);const db=firebase.firestore(),au=firebase.auth();
+const $=i=>document.getElementById(i),esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let unsub=null,oid=null,first=true,ac=null;
+function show(id){document.querySelectorAll('.s').forEach(e=>e.classList.toggle('on',e.id==id));
+ $('tabs').style.display=['ords','offs'].includes(id)?'flex':'none';$('t1').classList.toggle('on',id=='ords');$('t2').classList.toggle('on',id=='offs')}
+function beep(){try{ac=ac||new AudioContext();[880,1175,880].forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.frequency.value=f;o.connect(g);g.connect(ac.destination);
+ const t=ac.currentTime+i*.22;g.gain.setValueAtTime(.3,t);g.gain.exponentialRampToValueAtTime(.001,t+.2);o.start(t);o.stop(t+.2)})}catch(e){}}
+document.addEventListener('click',()=>{ac=ac||new (window.AudioContext||webkitAudioContext)();ac.resume()},{once:true});
+async function auth(n){try{n?await au.createUserWithEmailAndPassword($('em').value,$('pw').value):await au.signInWithEmailAndPassword($('em').value,$('pw').value)}
+ catch(e){$('er').textContent='تحقق من البريد وكلمة المرور'}}
+async function reset(){if(!$('em').value)return $('er').textContent='اكتب بريدك أولاً';await au.sendPasswordResetEmail($('em').value);$('er').textContent='أرسلنا رابط الاستعادة لبريدك'}
+au.onAuthStateChanged(u=>{if(!u){show('auth');$('tabs').style.display='none';return}show('ords');start()});
+function start(){
+ db.collection('orders').orderBy('t','desc').onSnapshot(s=>{
+  if(!first&&s.docChanges().some(c=>c.type=='added'&&!c.doc.metadata.hasPendingWrites))beep();first=false;
+  $('ol').innerHTML=s.docs.map(d=>{const o=d.data(),geo=`geo:${o.lat},${o.lng}?q=${o.lat},${o.lng}`;
+  return `<div class="o"><div class="t">${esc(o.name)}</div><small>📞 ${esc(o.phone)}</small>
+  <p style="margin-top:8px"><b>${esc(o.offer)}</b> × ${o.qty} — ${esc(o.price)}</p>
+  <a class="btn g" href="${geo}">📍 فتح العنوان في تطبيق الخرائط</a>
+  <a class="btn g" href="https://waze.com/ul?ll=${o.lat},${o.lng}&navigate=yes">Waze</a>
+  <div class="row"><button onclick="openChat('${d.id}','${esc(o.name)}')">دردشة</button><button class="no" onclick="del('${d.id}')">حذف الطلب</button></div></div>`}).join('')||'<p style="color:var(--mut)">لا توجد طلبات بعد</p>'});
+ db.collection('offers').orderBy('t','desc').onSnapshot(s=>{$('ofl').innerHTML=s.docs.map(d=>{const o=d.data();
+  return `<div class="o of"><img src="${o.img||''}"><div><b>${esc(o.name)}</b><small>${esc(o.price)}</small></div><button class="no" onclick="delOffer('${d.id}')">حذف</button></div>`}).join('')})}
+function del(id){confirm('حذف هذا الطلب؟')&&db.collection('orders').doc(id).delete()}
+function delOffer(id){confirm('حذف العرض؟')&&db.collection('offers').doc(id).delete()}
+function img(f){return new Promise(r=>{const i=new Image();i.onload=()=>{const k=Math.min(1,500/i.width),c=document.createElement('canvas');c.width=i.width*k;c.height=i.height*k;c.getContext('2d').drawImage(i,0,0,c.width,c.height);r(c.toDataURL('image/jpeg',.75))};i.src=URL.createObjectURL(f)})}
+async function addOffer(){const n=$('on').value.trim(),p=$('op').value.trim(),f=$('oi').files[0];if(!n||!p||!f)return alert('اكتب الاسم والسعر واختر صورة');
+ await db.collection('offers').add({name:n,price:p,img:await img(f),t:firebase.firestore.FieldValue.serverTimestamp()});
+ $('on').value=$('op').value=$('oi').value='';alert('تم النشر ✅')}
+function openChat(id,name){oid=id;$('ct').textContent=name;show('chat');unsub&&unsub();
+ unsub=db.collection('orders').doc(id).collection('m').orderBy('t').onSnapshot(s=>{$('ms').innerHTML=s.docs.map(d=>{const m=d.data();return `<div class="b ${m.f=='o'?'me':''}">${esc(m.x)}</div>`}).join('');$('ms').scrollTop=1e9})}
+async function sendMsg(){const x=$('cm').value.trim();if(!x)return;$('cm').value='';
+ await db.collection('orders').doc(oid).collection('m').add({f:'o',x,t:firebase.firestore.FieldValue.serverTimestamp()})}
+</script></body></html>
